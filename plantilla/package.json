@@ -1,0 +1,12 @@
+{
+  "name": "__app__-scriptable",
+  "private": true,
+  "description": "__APP__: app personal para iPhone con Scriptable (iOS)",
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node --test",
+    "invisibles": "node tools/invisibles.js",
+    "capturas": "node tools/capturas.js",
+    "icono": "python3 tools/icono.py icono/icono.svg icono/icono-1024.png"
+  }
+}

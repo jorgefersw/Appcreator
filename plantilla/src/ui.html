@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="format-detection" content="telephone=no">
+<title>__APP__</title>
+<style>
+/* Tokens: claro y oscuro. Cambia --acento (y su versión oscura) para la identidad de la app. */
+:root {
+  --bg: #f6f6f8; --fuera: #e4e4e9; --sup: #ffffff; --sup2: #ececf1; --txt: #111114; --txt2: #6a6a76; --txt3: #a0a0ab;
+  --linea: rgba(17, 17, 20, .08); --acento: __ACENTO_CLARO__; --acento-s: color-mix(in srgb, var(--acento) 14%, transparent); --sobre-acento: #ffffff;
+  --rojo: #d92d20; --barra: rgba(246, 246, 248, .92); --velo: rgba(10, 10, 24, .38); --sombra: 0 12px 40px rgba(10, 10, 30, .18);
+  /* Áreas seguras: env() en el iPhone; la vista previa las simula con ?seguro=sup,inf. */
+  --seg-sup: env(safe-area-inset-top, 0px); --seg-inf: env(safe-area-inset-bottom, 0px);
+  --tabbar: 56px; --reserva-sup: var(--seg-sup);
+  --curva: cubic-bezier(.32, .72, 0, 1);
+}
+/* Scriptable dibuja su barra nativa (Close) encima: 80 pt por defecto, ajustable en Ajustes. */
+html.en-scriptable { --reserva-sup: 80px; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0b0e; --fuera: #040405; --sup: #17171c; --sup2: #24242b; --txt: #f3f3f6; --txt2: #9d9da8; --txt3: #5e5e69;
+    --linea: rgba(255, 255, 255, .09); --acento: __ACENTO_OSCURO__; --sobre-acento: #0c0c1c;
+    --rojo: #ff6b61; --barra: rgba(11, 11, 14, .9); --velo: rgba(0, 0, 0, .6); --sombra: 0 12px 40px rgba(0, 0, 0, .6);
+  }
+}
+* { box-sizing: border-box; touch-action: manipulation; }
+html, body { margin: 0; height: 100%; }
+html.sin-alto, html.sin-alto body { height: auto; overflow: visible; display: block; }
+body {
+  display: flex; justify-content: center; background: var(--fuera); color: var(--txt);
+  font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", sans-serif;
+  -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased;
+  overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+input, textarea { -webkit-user-select: text; user-select: text; }
+/* Ancho completo en cualquier iPhone (de 375 a 440 pt); solo en escritorio se limita y se centra. */
+#app { position: relative; width: 100%; height: 100vh; height: 100dvh; overflow: hidden; background: var(--bg); }
+@media (min-width: 500px) { #app { max-width: 440px; box-shadow: 0 0 0 1px var(--linea), var(--sombra); } }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; -webkit-appearance: none; appearance: none; text-align: inherit; }
+h1, h2, p { margin: 0; }
+[hidden] { display: none !important; }
+h1 { font-size: 34px; line-height: 1.08; font-weight: 700; letter-spacing: -.03em; }
+h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--txt2); padding: 18px 20px 6px; }
+.suave { color: var(--txt2); }
+.num { font-variant-numeric: tabular-nums; }
+.ic { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ic.peq { width: 15px; height: 15px; stroke-width: 2.4; }
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 8px; }
+
+/* Estructura: vistas que hacen scroll, banda superior y barra de pestañas translúcida */
+#main { position: absolute; inset: 0; }
+.vista { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding: calc(var(--reserva-sup) + 8px) 0 calc(var(--tabbar) + var(--seg-inf) + 36px); }
+#banda-sup { display: none; position: absolute; left: 0; right: 0; top: 0; height: var(--reserva-sup); z-index: 10; background: var(--bg); pointer-events: none; }
+#banda-sup::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 14px; background: linear-gradient(var(--bg), transparent); }
+html.en-scriptable #banda-sup { display: block; }
+.tabbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(2, 1fr);
+  padding: 4px 6px calc(4px + var(--seg-inf)); background: var(--barra); border-top: 1px solid var(--linea);
+  -webkit-backdrop-filter: saturate(1.8) blur(22px); backdrop-filter: saturate(1.8) blur(22px); }
+.tab { min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10.5px; font-weight: 600; color: var(--txt2); transition: color .15s, transform .12s; }
+.tab:active { transform: scale(.94); }
+.tab.act { color: var(--acento); }
+.cab { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 4px 16px 10px; }
+.cab .sub { margin-top: 2px; font-size: 15px; color: var(--txt2); }
+.bi { width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; background: var(--sup2); transition: transform .12s; flex: none; }
+.bi:active { transform: scale(.92); }
+.bi.prim { background: var(--acento); color: var(--sobre-acento); }
+
+/* Grupos y filas (estilo lista agrupada de iOS) */
+.grupo { margin: 0 16px; background: var(--sup); border-radius: 14px; overflow: hidden; }
+.fila { display: flex; align-items: center; gap: 4px; min-height: 52px; padding: 4px 14px 4px 4px; position: relative; }
+.fila + .fila::before { content: ""; position: absolute; top: 0; left: 48px; right: 0; height: 1px; background: var(--linea); }
+.fila .tit { flex: 1; min-width: 0; line-height: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fila > span.tit { padding-left: 10px; }
+.fila.hecho .tit { color: var(--txt3); text-decoration: line-through; }
+/* Zona táctil de 44 pt con un círculo visible de 24. */
+.circ { width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; }
+.circ i { width: 24px; height: 24px; border-radius: 12px; border: 2px solid var(--txt3); display: flex; align-items: center; justify-content: center; transition: transform .12s, background .15s; }
+.circ:active i { transform: scale(.85); }
+.fila.hecho .circ i { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }
+.vacio { padding: 48px 32px; text-align: center; color: var(--txt2); }
+.boton { width: 100%; min-height: 48px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; color: var(--acento); }
+.boton.rojo { color: var(--rojo); }
+.boton + .boton { border-top: 1px solid var(--linea); }
+
+/* Hojas: capa con velo y panel que sube desde abajo con muelle */
+.capa { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; justify-content: flex-end; background: var(--velo); opacity: 0; transition: opacity .25s; }
+.capa.vis { opacity: 1; }
+.hoja { background: var(--bg); border-radius: 26px 26px 0 0; box-shadow: var(--sombra); padding: 10px 16px calc(16px + var(--seg-inf));
+  transform: translateY(100%); transition: transform .42s var(--curva); max-height: calc(100% - var(--reserva-sup) - 8px); overflow-y: auto; }
+.capa.vis .hoja { transform: none; }
+.asa { width: 36px; height: 5px; border-radius: 3px; background: var(--txt3); margin: 0 auto 12px; opacity: .6; }
+.hoja-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.hoja-cab b { font-size: 17px; }
+.campo { width: 100%; padding: 14px; border-radius: 12px; border: 0; background: var(--sup); font-size: 17px; outline: none; }
+textarea.campo { min-height: 96px; resize: none; margin-top: 10px; font-size: 15px; }
+.txt-boton { color: var(--acento); font-weight: 600; min-height: 44px; padding: 0 4px; }
+
+/* Avisos (toasts) con Deshacer */
+#avisos { position: absolute; left: 12px; right: 12px; bottom: calc(var(--tabbar) + var(--seg-inf) + 12px); z-index: 40; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(28, 28, 34, .92); color: #fff;
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); font-size: 15px; animation: entra .3s var(--curva); }
+.toast span { flex: 1; }
+.toast .tb { color: #a5b4fc; font-weight: 600; }
+@keyframes entra { from { opacity: 0; transform: translateY(12px); } }
+.pre { white-space: pre-wrap; word-break: break-word; font: 12px/1.4 ui-monospace, Menlo, monospace; padding: 14px; color: var(--txt2); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="arranque" style="position:fixed;left:0;right:0;top:38%;z-index:999;padding:20px;text-align:center;color:#8a8f98;font:15px/1.4 -apple-system,sans-serif;white-space:pre-wrap;word-break:break-word">Cargando __APP__…</div>
+<script>
+// Diagnóstico de arranque: si algo falla antes de pintar, el error se ve en
+// pantalla (y Scriptable lo lee con sondearPagina) en vez de quedar en negro.
+(function () {
+  var errores = window.__errores = [];
+  function mostrar() {
+    var caja = document.getElementById('arranque');
+    if (!caja) return;
+    caja.style.color = '#ff6b72';
+    caja.textContent = '__APP__ no ha podido arrancar.\n\n' + (errores.length ? errores.join('\n') : 'La interfaz no ha llegado a pintarse (sin errores de JavaScript).');
+  }
+  window.addEventListener('error', function (e) { errores.push(String(e.message || e) + (e.lineno ? ' (línea ' + e.lineno + ':' + e.colno + ')' : '')); mostrar(); });
+  window.addEventListener('unhandledrejection', function (e) { errores.push('Promesa rechazada: ' + String(e.reason && e.reason.message || e.reason)); mostrar(); });
+  setTimeout(mostrar, 4000);
+})();
+</script>
+<div id="app">
+  <div id="main"></div>
+  <div id="banda-sup" aria-hidden="true"></div>
+  <nav class="tabbar" id="tabbar" aria-label="Secciones"></nav>
+  <div id="capas"></div>
+  <div id="avisos" role="status" aria-live="polite"></div>
+</div>
+<script>
+// Alto medido con JavaScript: en el WebView de Scriptable vh/dvh pueden valer 0
+// y dejar la pantalla negra. Si la ventana mide 0x0 se usa la pantalla.
+(function () {
+  var app = document.getElementById('app');
+  var raiz = document.documentElement;
+  var vuelta = false;
+  function ajustar() {
+    var vv = window.visualViewport;
+    var alto = Math.round(window.innerHeight || raiz.clientHeight || (vv && vv.height) || 0);
+    if (alto > 0) {
+      app.style.height = alto + 'px';
+      app.style.width = '';
+      raiz.classList.remove('sin-alto');
+    } else {
+      var pantalla = window.screen || {};
+      app.style.height = Math.max(320, (pantalla.height || 700) - 110) + 'px';
+      app.style.width = Math.max(280, pantalla.width || 375) + 'px';
+      raiz.classList.add('sin-alto');
+      var meta = document.querySelector('meta[name=viewport]');
+      if (meta) { vuelta = !vuelta; meta.setAttribute('content', 'width=device-width, initial-scale=1' + (vuelta ? '.0' : '') + ', maximum-scale=1, user-scalable=no, viewport-fit=cover'); }
+    }
+  }
+  ajustar();
+  ['resize', 'orientationchange', 'pageshow', 'focus'].forEach(function (e) { window.addEventListener(e, ajustar); });
+  document.addEventListener('visibilitychange', ajustar);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', ajustar);
+  [50, 250, 600].forEach(function (ms) { setTimeout(ajustar, ms); });
+  setInterval(ajustar, 1000);
+})();
+</script>
+<script>/*__NUCLEO__*/</script>
+<script>/*__INICIO__*/</script>
+<script>
+(function () {
+  'use strict';
+  var N = crearNucleo();
+  var INICIO = window.__INICIO__ || { datos: N.datosIniciales(), avisos: [] };
+  var raiz = document.documentElement;
+  var busqueda = '';
+  try { busqueda = String(location.search || ''); } catch (e0) { busqueda = ''; }
+  if (INICIO.entorno === 'scriptable' || /[?&]scriptable(?:[=&]|$)/.test(busqueda)) raiz.classList.add('en-scriptable');
+  // Solo vista previa: ?seguro=59,34 simula las áreas seguras de un modelo concreto.
+  var mseg = /[?&]seguro=(\d+),(\d+)/.exec(busqueda);
+  if (mseg) { raiz.style.setProperty('--seg-sup', mseg[1] + 'px'); raiz.style.setProperty('--seg-inf', mseg[2] + 'px'); }
+
+  var datos = N.migrar(INICIO.datos);
+  var HOY = INICIO.hoy || N.fechaLocal(new Date()).slice(0, 10);
+  var desfase = 0; // reloj del anfitrión menos reloj de la página
+  var U = { tab: 'inicio', avisosVistos: {} };
+  var main = document.getElementById('main');
+  var capas = document.getElementById('capas');
+
+  // ───────────── Utilidades ─────────────
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  function ahoraTxt() { return N.fechaLocal(new Date(Date.now() + desfase)); }
+  function fijarReloj(hoy, ahora) {
+    if (typeof hoy === 'string') HOY = hoy;
+    if (N.esInstanteValido(ahora)) {
+      var p = ahora.split(/[-T:]/).map(Number);
+      desfase = new Date(p[0], p[1] - 1, p[2], p[3], p[4], p[5]).getTime() - Date.now();
+    }
+  }
+  function reducido() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  // h('div', { class, text, onclick, ... }, [hijos]): crea nodos sin innerHTML (sin inyección).
+  function h(tag, at, hijos) {
+    var el = document.createElement(tag);
+    Object.keys(at || {}).forEach(function (k) {
+      var v = at[k];
+      if (v == null || v === false) return;
+      if (k === 'text') el.textContent = v;
+      else if (k.slice(0, 2) === 'on') el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? '' : v);
+    });
+    (hijos || []).forEach(function (c) { if (c) el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return el;
+  }
+  var SVG = 'http://www.w3.org/2000/svg';
+  // Iconos de trazo (24x24) definidos como rutas: sin fuentes ni imágenes externas.
+  var ICONOS = { lista: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01', ajustes: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z', mas: 'M12 5v14M5 12h14', ok: 'M5 12.5l4.5 4.5L19 7.5' };
+  function icono(nombre, clase) {
+    var s = document.createElementNS(SVG, 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('class', 'ic ' + (clase || ''));
+    var p = document.createElementNS(SVG, 'path');
+    p.setAttribute('d', ICONOS[nombre]);
+    s.appendChild(p);
+    return s;
+  }
+
+  // ───────────── Puente con el anfitrión ─────────────
+  // La página encola mensajes {n, tipo, ...}; Scriptable los recoge con
+  // esperar(completion) y responde con recibir({ack, resultados, datos, ...}).
+  var Puente = (function () {
+    var n = 0, salida = [], pendientes = {}, esperas = [];
+    function despertar() { esperas.slice().forEach(function (f) { f(); }); }
+    function enviar(mensaje) {
+      return new Promise(function (resolver) {
+        n++;
+        var msg = { n: n };
+        Object.keys(mensaje).forEach(function (k) { msg[k] = mensaje[k]; });
+        pendientes[n] = resolver;
+        salida.push(msg);
+        despertar();
+      });
+    }
+    function esperar(completar) {
+      if (typeof completar !== 'function') completar = window.completion;
+      var hecho = false, temporizador = null;
+      function fin() {
+        if (hecho) return;
+        hecho = true;
+        clearTimeout(temporizador);
+        var i = esperas.indexOf(fin);
+        if (i >= 0) esperas.splice(i, 1);
+        completar(JSON.stringify(salida));
+      }
+      if (salida.length) { fin(); return; }
+      esperas.push(fin);
+      temporizador = setTimeout(fin, 400);
+    }
+    function recibir(r) {
+      if (!r || typeof r !== 'object') return;
+      if (typeof r.ack === 'number') for (var i = salida.length - 1; i >= 0; i--) if (salida[i].n <= r.ack) salida.splice(i, 1);
+      fijarReloj(r.hoy, r.ahora);
+      (Array.isArray(r.resultados) ? r.resultados : []).forEach(function (x) {
+        var f = pendientes[x.n];
+        if (f) { delete pendientes[x.n]; f(x); }
+      });
+      if (r.datos) datosNuevos(r.datos);
+      if (Array.isArray(r.avisos)) r.avisos.forEach(function (a) {
+        if (U.avisosVistos[a]) return;
+        U.avisosVistos[a] = true;
+        toast(String(a), { ms: 7000 });
+      });
+    }
+    function opsPendientes() { return salida.filter(function (m) { return m.tipo === 'op'; }).map(function (m) { return m.op; }); }
+    return { enviar: enviar, esperar: esperar, recibir: recibir, opsPendientes: opsPendientes };
+  })();
+  window.Puente = Puente;
+
+  // Datos frescos del disco con las operaciones aún no confirmadas reaplicadas
+  // encima, para que la pantalla no «retroceda».
+  function datosNuevos(d) {
+    var nd;
+    try { nd = N.migrar(clone(d)); } catch (e) { return; }
+    Puente.opsPendientes().forEach(function (op) { try { N.aplicarOp(nd, op); } catch (e) { /* el anfitrión avisará */ } });
+    datos = nd;
+    aplicarMargen();
+    render();
+  }
+
+  // Aplica la operación en pantalla al momento (sobre una copia) y la envía al
+  // anfitrión, que es quien guarda. La UI nunca persiste nada por su cuenta.
+  function hacerOp(op) {
+    op.ahora = ahoraTxt();
+    var copia = clone(datos), info;
+    try { info = N.aplicarOp(copia, op); } catch (e) { toast(e && e.message ? e.message : 'No se pudo completar la operación.'); return { ok: false }; }
+    datos = copia;
+    render();
+    Puente.enviar({ tipo: 'op', op: op }).then(function (r) {
+      if (r && r.ok === false && !r.cancelado) toast(r.error || 'No se pudo guardar el cambio.');
+    });
+    return { ok: true, info: info };
+  }
+
+  // ───────────── Avisos ─────────────
+  function toast(texto, op) {
+    op = op || {};
+    var cont = document.getElementById('avisos');
+    var el = h('div', { class: 'toast' }, [h('span', { text: texto })]);
+    var vivo = true;
+    function cerrar() { if (vivo) { vivo = false; el.remove(); } }
+    if (op.accion) el.appendChild(h('button', { class: 'tb', type: 'button', text: op.accion.texto, onclick: function () { cerrar(); op.accion.fn(); } }));
+    while (cont.children.length > 2) cont.firstChild.remove();
+    cont.appendChild(el);
+    setTimeout(cerrar, op.ms || 3500);
+  }
+  function deshacer(texto, fn) { toast(texto, { ms: 5000, accion: { texto: 'Deshacer', fn: fn } }); }
+
+  // ───────────── Hojas ─────────────
+  function abrirHoja(contenido) {
+    var hoja = h('div', { class: 'hoja', role: 'dialog' }, [h('div', { class: 'asa' })].concat(contenido));
+    var capa = h('div', { class: 'capa' }, [hoja]);
+    function cerrar() { capa.classList.remove('vis'); setTimeout(function () { capa.remove(); }, reducido() ? 0 : 420); }
+    capa.addEventListener('click', function (e) { if (e.target === capa) cerrar(); });
+    capas.appendChild(capa);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { capa.classList.add('vis'); }); });
+    return cerrar;
+  }
+
+  function hojaElemento(id) {
+    var e = id ? datos.elementos.filter(function (x) { return x.id === id; })[0] : null;
+    var titulo = h('input', { class: 'campo', type: 'text', placeholder: 'Título', enterkeyhint: 'done', value: e ? e.titulo : '' });
+    var notas = h('textarea', { class: 'campo', placeholder: 'Notas' });
+    notas.value = e ? e.notas : '';
+    var cerrar;
+    function guardar() {
+      var t = titulo.value.trim();
+      if (!t) { titulo.focus(); return; }
+      var r = e ? hacerOp({ tipo: 'elemento.editar', id: e.id, cambios: { titulo: t, notas: notas.value } })
+        : hacerOp({ tipo: 'elemento.crear', elemento: { titulo: t, notas: notas.value } });
+      if (r.ok) cerrar();
+    }
+    titulo.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') guardar(); });
+    var cuerpo = [
+      h('div', { class: 'hoja-cab' }, [
+        h('button', { class: 'txt-boton', type: 'button', text: 'Cancelar', onclick: function () { cerrar(); } }),
+        h('b', { text: e ? 'Editar' : 'Nuevo' }),
+        h('button', { class: 'txt-boton', type: 'button', text: 'Guardar', onclick: guardar })
+      ]),
+      titulo, notas
+    ];
+    if (e) cuerpo.push(h('div', { class: 'grupo', style: 'margin:16px 0 0' }, [h('button', { class: 'boton rojo', type: 'button', text: 'Borrar', onclick: function () { cerrar(); borrar(e); } })]));
+    cerrar = abrirHoja(cuerpo);
+  }
+
+  function borrar(e) {
+    if (hacerOp({ tipo: 'elemento.borrar', id: e.id }).ok) deshacer('Borrado «' + e.titulo + '»', function () { hacerOp({ tipo: 'elemento.restaurar', id: e.id }); });
+  }
+  function alternar(e) {
+    var tipo = e.hecho ? 'elemento.reabrir' : 'elemento.completar';
+    if (hacerOp({ tipo: tipo, id: e.id }).ok && !e.hecho) {
+      deshacer('Hecho: ' + e.titulo, function () { hacerOp({ tipo: 'elemento.reabrir', id: e.id }); });
+    }
+  }
+
+  // ───────────── Vistas ─────────────
+  function filaElemento(e) {
+    return h('div', { class: 'fila' + (e.hecho ? ' hecho' : '') }, [
+      h('button', { class: 'circ', type: 'button', 'aria-label': e.hecho ? 'Reabrir' : 'Completar', onclick: function () { alternar(e); } }, [h('i', {}, e.hecho ? [icono('ok', 'peq')] : [])]),
+      h('button', { class: 'tit', type: 'button', text: e.titulo, onclick: function () { hojaElemento(e.id); } })
+    ]);
+  }
+
+  function vistaInicio() {
+    var p = N.pendientes(datos), hechos = N.hechosHoy(datos, HOY);
+    var v = h('div', { class: 'vista' }, [
+      h('div', { class: 'cab' }, [
+        h('div', {}, [h('h1', { text: '__APP__' }), h('div', { class: 'sub', text: N.textoDia(HOY) })]),
+        h('button', { class: 'bi prim', type: 'button', 'aria-label': 'Nuevo', onclick: function () { hojaElemento(null); } }, [icono('mas')])
+      ])
+    ]);
+    if (!p.length && !hechos.length) { v.appendChild(h('div', { class: 'vacio', text: 'Nada por aquí. Pulsa + para empezar.' })); return v; }
+    if (p.length) { v.appendChild(h('h2', { text: 'Pendientes · ' + p.length })); v.appendChild(h('div', { class: 'grupo' }, p.map(filaElemento))); }
+    if (hechos.length) { v.appendChild(h('h2', { text: 'Hechos hoy' })); v.appendChild(h('div', { class: 'grupo' }, hechos.map(filaElemento))); }
+    return v;
+  }
+
+  function vistaAjustes() {
+    var m = datos.ajustes.margenSuperior;
+    var registro = h('div', { class: 'pre', text: 'Toca «Ver diagnóstico».' });
+    function margen(d) { hacerOp({ tipo: 'ajustes.editar', cambios: { margenSuperior: Math.max(0, Math.min(200, m + d)) } }); }
+    return h('div', { class: 'vista' }, [
+      h('div', { class: 'cab' }, [h('h1', { text: 'Ajustes' })]),
+      h('h2', { text: 'Pantalla' }),
+      h('div', { class: 'grupo' }, [h('div', { class: 'fila' }, [
+        h('span', { class: 'tit', text: 'Margen superior' }),
+        h('button', { class: 'bi', type: 'button', text: '−', onclick: function () { margen(-5); } }),
+        h('span', { class: 'num', text: m + ' pt' }),
+        h('button', { class: 'bi', type: 'button', text: '+', onclick: function () { margen(5); } })
+      ])]),
+      h('h2', { text: 'Copias de seguridad' }),
+      h('div', { class: 'grupo' }, [
+        h('button', { class: 'boton', type: 'button', onclick: function () { hacerOp({ tipo: 'ajustes.editar', cambios: { copiaIcloud: !datos.ajustes.copiaIcloud } }); } },
+          [h('span', { text: 'Copia diaria en iCloud' }), h('span', { class: 'suave', text: datos.ajustes.copiaIcloud ? 'Activada' : 'Desactivada' })]),
+        h('button', { class: 'boton', type: 'button', text: 'Exportar a Archivos', onclick: function () { exportar('archivos'); } }),
+        h('button', { class: 'boton', type: 'button', text: 'Compartir copia…', onclick: function () { exportar('compartir'); } }),
+        h('button', { class: 'boton', type: 'button', text: 'Importar copia (JSON)', onclick: importar })
+      ]),
+      h('h2', { text: 'Diagnóstico' }),
+      h('div', { class: 'grupo' }, [
+        h('button', { class: 'boton', type: 'button', text: 'Ver diagnóstico', onclick: function () {
+          Puente.enviar({ tipo: 'registro' }).then(function (r) { registro.textContent = (r && r.info && r.info.texto) || 'Sin entradas.'; });
+        } }),
+        registro
+      ])
+    ]);
+  }
+
+  function exportar(destino) {
+    Puente.enviar({ tipo: 'exportar', destino: destino }).then(function (r) {
+      if (r && r.ok) toast('Copia exportada: ' + r.info.nombre);
+      else if (!(r && r.cancelado)) toast((r && r.error) || 'No se pudo exportar.');
+    });
+  }
+  function importar() {
+    Puente.enviar({ tipo: 'importar' }).then(function (r) {
+      if (r && r.ok) toast('Importado: ' + r.info.añadidos + ' nuevos, ' + r.info.actualizados + ' actualizados.');
+      else if (!(r && r.cancelado)) toast((r && r.error) || 'No se pudo importar.');
+    });
+  }
+
+  var TABS = [{ id: 'inicio', nombre: 'Inicio', icono: 'lista' }, { id: 'ajustes', nombre: 'Ajustes', icono: 'ajustes' }];
+  function render() {
+    var scroll = main.firstChild ? main.firstChild.scrollTop : 0;
+    main.textContent = '';
+    main.appendChild(U.tab === 'ajustes' ? vistaAjustes() : vistaInicio());
+    main.firstChild.scrollTop = scroll;
+    var bar = document.getElementById('tabbar');
+    bar.textContent = '';
+    TABS.forEach(function (t) {
+      bar.appendChild(h('button', { class: 'tab' + (U.tab === t.id ? ' act' : ''), type: 'button', onclick: function () { U.tab = t.id; main.textContent = ''; render(); } },
+        [icono(t.icono), h('span', { text: t.nombre })]));
+    });
+  }
+  function aplicarMargen() {
+    if (raiz.classList.contains('en-scriptable')) raiz.style.setProperty('--reserva-sup', datos.ajustes.margenSuperior + 'px');
+  }
+
+  aplicarMargen();
+  render();
+  // Solo para la vista previa: ?vista=ajustes, ?hoja=nuevo.
+  var mv = /[?&]vista=(\w+)/.exec(busqueda);
+  if (mv && TABS.some(function (t) { return t.id === mv[1]; })) { U.tab = mv[1]; main.textContent = ''; render(); }
+  if (/[?&]hoja=nuevo/.test(busqueda)) setTimeout(function () { hojaElemento(null); }, 60);
+  var caja = document.getElementById('arranque');
+  if (caja) caja.remove();
+  window.__lista = true;
+  (INICIO.avisos || []).forEach(function (a) { U.avisosVistos[a] = true; toast(String(a), { ms: 7000 }); });
+})();
+</script>
+</body>
+</html>
